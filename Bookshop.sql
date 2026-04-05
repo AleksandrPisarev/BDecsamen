@@ -75,12 +75,75 @@ where (s.price / b.pages) < 0,65;
 /*6. Показать все книги, название которых состоит из 4 слов.*/
 select * from bookshop.books b where array_length(regexp_split_to_array(trim(b."name"), '\s+'), 1) = 4;
 
+/*7. Показать информацию о продажах в следующем виде:
+▷ Название книги, но, чтобы оно не содержало букву «А».
+▷ Тематика, но, чтобы не «Программирование».
+▷ Автор, но, чтобы не «Герберт Шилдт».
+▷ Цена, но, чтобы в диапазоне от 10 до 20 гривен.
+▷ Количество продаж, но не менее 8 книг.
+▷ Название магазина, который продал книгу, но он не должен быть в Украине или России.*/
+select b."name" as "название книги", t."name" as "тематика", concat_ws(' | ', a."name", a.surname) as "автор", s.price, s.quantity, sh."name" as "магазин" from bookshop.sales s 
+join bookshop.books b on s.bookid = b.id 
+join bookshop.themes t on b.themeid = t.id 
+join bookshop.authors a on b.authorid = a.id
+join bookshop.shops sh on s.shopid = sh.id
+join bookshop.countries c on sh.countryid = c.id 
+where b."name" not ilike '%A%' and t."name" != 'Програмирование' and a."name" != 'Герберт' and a.surname != 'Шилдт' and s.price between 10 and 20 and s.quantity >= 8 and c."name" not in ('украина', 'Россия')
+
+/*8. Показать следующую информацию в два столбца (числа в правом столбце приведены в качестве примера):
+▷ Количество авторов: 14
+▷ Количество книг: 47
+▷ Средняя цена продажи: 85.43 грн.
+▷ Среднее количество страниц: 650.6.*/
+select 'количество авторов' as 'показатель', count(id)::text as 'значение' from bookshop.authors a
+union all 
+select 'количество книг', count(id)::text as from bookshop.books b 
+union all 
+select 'средняя цена продажи', round(SUM(s.price * s.quantity ) / SUM(s.quantity ), 2)::text || ' грн. ' from bookshop.sales s
+union all 
+select 'среднее количество страниц', round(AVG(b.pages), 1)::text from bookshop.books b
+
 /*9. Показать тематики книг и сумму страниц всех книг по каждой из них.*/
-select t."name", b.pages  from bookshop.themes t 
-join bookshop.books b on b.themeid = t.id group by t."name" 
+select t."name", SUM(b.pages) from bookshop.themes t 
+join bookshop.books b on b.themeid = t.id
+group by t."name" 
 
+/*10. Показать количество всех книг и сумму страниц этих книг по каждому из авторов.*/
+select concat_ws(' | ', a."name", a.surname) as "автор", count(b.id), SUM(b.pages) from bookshop.authors a 
+join bookshop.books b on b.authorid = a.id
+group by a.id, a."name", a.surname
 
+/*11. Показать книгу тематики «Программирование» с наибольшим количеством страниц.*/
+select * from bookshop.books b 
+join bookshop.themes t on b.themeid = t.id 
+where t."name" = 'Програмирование'
+order by b.pages desc limit 1
 
+/*12. Показать среднее количество страниц по каждой тематике, которое не превышает 400.*/
+select t."name", round(AVG(b.pages), 1) from bookshop.themes t 
+join bookshop.books b on b.themeid = t.id 
+group by t.id, t."name" 
+having AVG(b.pages) <=  400
 
+/*13. Показать сумму страниц по каждой тематике, учитывая
+только книги с количеством страниц более 400, и чтобы
+тематики были «Программирование», «Администрирование» и «Дизайн».*/
+select t."name", SUM(b.pages) from bookshop.themes t
+join bookshop.books b on b.themeid = t.id
+where b.pages > 400 and t."name" in ('Програмирование', 'Администрирование', 'Дизайн')
+group by t.id, t."name"
+
+/*14. Показать информацию о работе магазинов: что, где, кем, когда и в каком количестве было продано.*/
+select b."name" as "книга", c."name" as "страна", sh."name" as "магазин", s.saledate as "дата", s.quantity as "количество" from bookshop.shops sh 
+join bookshop.countries c on sh.countryid = c.id 
+join bookshop.sales s on s.shopid = sh.id 
+join bookshop.books b on s.bookid = b.id 
+order by s.saledate desc 
+
+/*15. Показать самый прибыльный магазин.*/
+select sh."name", SUM(s.price * s.quantity) as "прибыль" from bookshop.shops sh 
+join bookshop.sales s on s.shopid = sh.id  
+group by sh.id, sh."name"
+order by "прибыль" desc limit 1
 
 
